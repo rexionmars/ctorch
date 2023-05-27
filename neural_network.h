@@ -52,9 +52,19 @@ Math mathematical_allocation(size_t rows, size_t colluns)
 
 void math_dot(Math distance, Math a, Math b)
 {
-    (void) distance;
-    (void) a;
-    (void) b;
+    NN_ASSERT(a.colluns == b.rows);
+    size_t n = a.colluns;
+    NN_ASSERT(distance.rows == a.rows);
+    NN_ASSERT(distance.colluns ==b.colluns);
+
+    for (size_t i = 0; i < distance.rows; ++i) {
+        for (size_t j = 0; j < distance.colluns; ++j) {
+            MATH_AT(distance, i, j) = 0;
+            for (size_t k = 0; k < n; ++k) {
+                MATH_AT(distance, i, j) += MATH_AT(a, i, k) * MATH_AT(b, k, j);
+            }
+        }
+    }
 }
 
 void math_sum(Math distance, Math a)
@@ -63,7 +73,7 @@ void math_sum(Math distance, Math a)
     NN_ASSERT(distance.colluns == a.colluns);
 
     for (size_t i = 0; i < distance.rows; ++i) {
-        for (size_t j = 0; j < distance.rows; ++j) {
+        for (size_t j = 0; j < distance.colluns; ++j) {
             MATH_AT(distance, i, j) += MATH_AT(a, i, j);
         }
     }
