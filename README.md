@@ -9,7 +9,7 @@ This will be updated soon<br>
 
 ## What is APOLLO ?
 
-Apollo is a Next Framework for Deep Learnig
+Apollo is a Next Framework for Machine Learnig
 
 ## Main characteristics
 - [x] Easy use
