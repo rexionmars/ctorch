@@ -17,23 +17,34 @@
 typedef struct {
     size_t rows;
     size_t colluns;
-    float *es;
+    size_t stride;
+    float *elements_start;
 } Math;
 
-#define MATH_AT(m, i, j) (m).es[(i)*(m).colluns + (j)]
+#define MATH_AT(m, i, j) (m).elements_start[(i)*(m).stride + (j)]
 
 float rand_float(void);
+float sigmoidf(float x);
 
 Math mathematical_allocation(size_t rows, size_t colluns);
 void math_fill(Math m, float x);
 void math_rand(Math m, float low, float high);
-void math_dot(Math distance, Math a, Math b);
-void math_sum(Math distance, Math a);
-void math_print(Math m);
+Math math_row(Math m, size_t row);
+void math_copy(Math distination, Math src);
+void math_dot(Math destination, Math a, Math b);
+void math_sum(Math destination, Math a);
+void math_sig(Math m);
+void math_print(Math m, const char *name);
+#define MATH_PRINT(m) math_print(m, #m)
 
 #endif // NN_H_
 
 #ifdef NN_IMPLEMENTATION
+
+float sigmoidf(float x)
+{
+    return 1.f / (1.f + expf(-x));
+}
 
 float rand_float(void)
 {
@@ -42,51 +53,84 @@ float rand_float(void)
 
 Math mathematical_allocation(size_t rows, size_t colluns)
 {
-    Math m;
-    m.rows = rows;
-    m.colluns = colluns;
-    m.es = malloc(sizeof(*m.es)*rows*colluns);
-    NN_ASSERT(m.es != NULL);
-    return m;
+    Math model;
+    model.rows = rows;
+    model.colluns = colluns;
+    model.stride = colluns;
+    model.elements_start = malloc(sizeof(*model.elements_start)*rows*colluns);
+    NN_ASSERT(model.elements_start != NULL);
+    return model;
 }
 
-void math_dot(Math distance, Math a, Math b)
+void math_dot(Math destination, Math a, Math b)
 {
     NN_ASSERT(a.colluns == b.rows);
     size_t n = a.colluns;
-    NN_ASSERT(distance.rows == a.rows);
-    NN_ASSERT(distance.colluns ==b.colluns);
+    NN_ASSERT(destination.rows == a.rows);
+    NN_ASSERT(destination.colluns ==b.colluns);
 
-    for (size_t i = 0; i < distance.rows; ++i) {
-        for (size_t j = 0; j < distance.colluns; ++j) {
-            MATH_AT(distance, i, j) = 0;
+    for (size_t i = 0; i < destination.rows; ++i) {
+        for (size_t j = 0; j < destination.colluns; ++j) {
+            MATH_AT(destination, i, j) = 0;
             for (size_t k = 0; k < n; ++k) {
-                MATH_AT(distance, i, j) += MATH_AT(a, i, k) * MATH_AT(b, k, j);
+                MATH_AT(destination, i, j) += MATH_AT(a, i, k) * MATH_AT(b, k, j);
             }
         }
     }
 }
 
-void math_sum(Math distance, Math a)
+Math math_row(Math m, size_t row)
 {
-    NN_ASSERT(distance.rows == a.rows);
-    NN_ASSERT(distance.colluns == a.colluns);
+    return (Math) {
+        .rows = 1,
+        .colluns = m.colluns,
+        .stride = m.stride,
+        .elements_start = &MATH_AT(m, row, 0),
+    };
+}
 
-    for (size_t i = 0; i < distance.rows; ++i) {
-        for (size_t j = 0; j < distance.colluns; ++j) {
-            MATH_AT(distance, i, j) += MATH_AT(a, i, j);
+void math_copy(Math destination, Math src)
+{
+    NN_ASSERT(destination.rows == src.rows);
+    NN_ASSERT(destination.colluns == src.colluns);
+    for (size_t i = 0; i < destination.rows; ++i) {
+        for (size_t j = 0; j < destination.colluns; ++j){
+            MATH_AT(destination, i, j) = MATH_AT(src, i, j);
         }
     }
 }
 
-void math_print(Math m)
+void math_sum(Math destination, Math a)
 {
+    NN_ASSERT(destination.rows == a.rows);
+    NN_ASSERT(destination.colluns == a.colluns);
+
+    for (size_t i = 0; i < destination.rows; ++i) {
+        for (size_t j = 0; j < destination.colluns; ++j) {
+            MATH_AT(destination, i, j) += MATH_AT(a, i, j);
+        }
+    }
+}
+
+void math_sig(Math m)
+{
+    for (size_t i = 0; i < m.rows; ++i){
+        for (size_t j = 0; j < m.colluns; ++j) {
+            MATH_AT(m, i, j) = sigmoidf(MATH_AT(m, i, j));
+        }
+    }
+}
+
+void math_print(Math m, const char *name)
+{
+    printf("%s = [\n", name);
     for (size_t i = 0; i < m.rows; ++i) {
         for (size_t j = 0; j < m.colluns; ++j) {
-            printf("%f ", MATH_AT(m, i, j));
+            printf("    %f ", MATH_AT(m, i, j));
         }
         printf("\n");
     }
+    printf("]\n");
 }
 
 void math_fill(Math m, float x)
