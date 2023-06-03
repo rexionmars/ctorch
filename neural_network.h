@@ -14,6 +14,11 @@
 #define NN_ASSERT assert
 #endif // NN_ASSERT
 
+#define ARRAY_LEN(xs) sizeof((xs)) / sizeof((xs)[0])
+
+float rand_float(void);
+float sigmoidf(float x);
+
 typedef struct {
     size_t rows;
     size_t colluns;
@@ -22,9 +27,6 @@ typedef struct {
 } Math;
 
 #define MATH_AT(m, i, j) (m).elements_start[(i)*(m).stride + (j)]
-
-float rand_float(void);
-float sigmoidf(float x);
 
 Math mathematical_allocation(size_t rows, size_t colluns);
 void math_fill(Math m, float x);
@@ -37,6 +39,14 @@ void math_sig(Math m);
 void math_print(Math m, const char *name);
 #define MATH_PRINT(m) math_print(m, #m)
 
+typedef struct {
+    size_t count_layers;
+    Math *ws;
+    Math *bs;
+    Math *as; // The amount of activations is count + 1
+} NeuralNetwork;
+
+NeuralNetwork nn_allocation(size_t *arch, size_t arch_count);
 #endif // NN_H_
 
 #ifdef NN_IMPLEMENTATION
