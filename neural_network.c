@@ -8,42 +8,23 @@
 #include "neural_network.h"
 
 typedef struct {
-    size_t count_layers;
-    Math *ws;
-    Math *bs;
-    Math *as; // The amount of activations is count + 1
-} NeuralNetwork;
+    Math a0, a1, a2;
+    Math w1, b1;
+    Math w2, b2;
+} Xor;
 
-#define ARRAY_LEN(xs) sizeof((xs)) / sizeof((xs)[0])
-
-//size_t arch[] = {2, 2, 1};
-//NN nn = neural_network_allocation(arch, ARRAY_LEN(arch));
-/*  NN nn = neural_network_allocation({2, 2 1})
- *  The first argument is the number of inputs.
- *  The second argument is the number of hidden layers.
- *  The third argument is the number of outputs. */
-
-NeuralNetwork nn_allocation(size_t *arch, size_t arch_count)
+Xor xor_alloc(void)
 {
-    NN_ASSERT(arch_count > 0);
-    NeuralNetwork nn;
-    nn.count_layers = arch_count -1;
+    Xor model;
+    model.a0 = mathematical_allocation(1, 2);
+    model.w1 = mathematical_allocation(2, 2);
+    model.b1 = mathematical_allocation(1, 2);
+    model.a1 = mathematical_allocation(1, 2);
+    model.w2 = mathematical_allocation(2, 1);
+    model.b2 = mathematical_allocation(1, 1);
+    model.a2 = mathematical_allocation(1, 1);
 
-    nn.ws = NN_MALLOC(sizeof(*nn.ws) * nn.count_layers);
-    NN_ASSERT(nn.ws != NULL);
-    nn.bs = NN_MALLOC(sizeof(*nn.bs) * nn.count_layers);
-    NN_ASSERT(nn.bs != NULL);
-    nn.as = NN_MALLOC(sizeof(*nn.as) * nn.count_layers + 1);
-    NN_ASSERT(nn.as != NULL);
-
-    nn.as[0] = mathematical_allocation(1, arch[0]);
-    for (size_t i = 0; i < arch_count; ++i) {
-        nn.ws[i - 1] = mathematical_allocation(nn.as[i - 1].colluns, arch[i]);
-        nn.bs[i - 1] = mathematical_allocation(1, arch[i]);
-        nn.as[i] = mathematical_allocation(1, arch[i]);
-    }
-
-    return nn;
+    return model;
 }
 
 void forward_xor(Xor model)
@@ -162,6 +143,12 @@ void xor_learn(Xor model, Xor gate, float rate)
 
 int main(void)
 {
+    size_t arch[] = {2, 2, 1};
+    NN nn = nn_allocation(arch, ARRAY_LEN(arch));
+    NN_PRINT(nn);
+
+    return 0;
+
     srand(time(0));
     size_t stride = 3;
     size_t n = sizeof(train_date) / sizeof(train_date[0]) / stride;
