@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include <math.h>
 
@@ -8,7 +9,6 @@
 
 typedef struct {
     Math a0, a1, a2;
-
     Math w1, b1;
     Math w2, b2;
 } Xor;
@@ -143,6 +143,12 @@ void xor_learn(Xor model, Xor gate, float rate)
 
 int main(void)
 {
+    size_t arch[] = {2, 2, 1};
+    NN nn = nn_allocation(arch, ARRAY_LEN(arch));
+    NN_PRINT(nn);
+
+    return 0;
+
     srand(time(0));
     size_t stride = 3;
     size_t n = sizeof(train_date) / sizeof(train_date[0]) / stride;
