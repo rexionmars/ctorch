@@ -143,12 +143,6 @@ void xor_learn(Xor model, Xor gate, float rate)
 
 int main(void)
 {
-    size_t arch[] = {2, 2, 1};
-    NN nn = nn_allocation(arch, ARRAY_LEN(arch));
-    NN_PRINT(nn);
-
-    return 0;
-
     srand(time(0));
     size_t stride = 3;
     size_t n = sizeof(train_date) / sizeof(train_date[0]) / stride;
@@ -167,38 +161,21 @@ int main(void)
         .elements_start = train_date + 2
     };
 
-    Xor model = xor_alloc();
-    Xor gate = xor_alloc();
-
-    math_rand(model.w1, 0, 1);
-    math_rand(model.b1, 0, 1);
-    math_rand(model.w2, 0, 1);
-    math_rand(model.b2, 0, 1);
+    size_t architecture[] = {2, 2, 1};
+    NN nn = nn_allocation(architecture, ARRAY_LEN(architecture));
+    NN gate = nn_allocation(architecture, ARRAY_LEN(architecture));
+    nn_rand(nn, 0, 1);
 
     float eps = 1e-1;
     float rate = 1e-1;
 
-    printf("COST: %f\n", cost(model, train_input, train_output));
-    for (size_t i = 0; i < 10; ++i) {
-        finite_difference(model, gate, eps, train_input, train_output);
-        xor_learn(model, gate, rate);
-        printf("%zu: COST %f\n",i , cost(model, train_input, train_output));
-    }
+    printf("COST: %f\n", nn_cost(nn, train_input, train_output));
 
-    printf("-------------\n");
-    #if 1
-    for (size_t i = 0; i < 2; ++i) {
-        for (size_t j = 0; j < 2; ++j) {
-            MATH_AT(model.a0, 0, 0) = i;
-            MATH_AT(model.a0, 0, 0) = j;
-            forward_xor(model);
+    // for review
+    nn_finite_difference(nn, gate, eps, train_input, train_output);
 
-            float y = *model.a2.elements_start;
-
-            printf("%zu ^ %zu = %f\n", i, j, y);
-        }
-    }
-    #endif
+    nn_learn(nn, gate, rate);
+    printf("COST: %f\n", nn_cost(nn, train_input, train_output));
 
     return 0;
 }

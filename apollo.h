@@ -46,9 +46,17 @@ typedef struct {
     Math *as; // The amount of activations is count + 1
 } NN;
 
+#define NN_INPUT(nn) (nn).as[0]
+#define NN_OUTPUT(nn) (nn).as[(nn).count_layers]
+
 NN nn_allocation(size_t *arch, size_t arch_count);
 void nn_print(NN nn, const char *name);
 #define NN_PRINT(nn) nn_print(nn, #nn);
+void nn_rand(NN nn, float low, float high);
+void nn_forward(NN nn);
+float nn_cost(NN nn, Math in, Math out);
+void nn_finite_difference(NN nn, NN gate, float eps, Math in, Math out);
+void nn_learn(NN nn, NN gate, float rate);
 
 #endif // NN_H_
 
@@ -201,10 +209,100 @@ void nn_print(NN nn, const char *name)
     printf("%s = [\n", name);
     for (size_t i = 0; i < nn.count_layers; ++i) {
         snprintf(buffer, sizeof(buffer), "ws%zu", i);
-        math_print(nn.ws[i], "ws", 4);
-        math_print(nn.bs[i], "bs", 4);
+        math_print(nn.ws[i], buffer, 4);
+        snprintf(buffer, sizeof(buffer), "bs%zu", i);
+        math_print(nn.bs[i], buffer, 4);
     }
     printf("]\n");
 }
 
+void nn_rand(NN nn, float low, float high)
+{
+    for (size_t i = 0; i < nn.count_layers; ++i) {
+        math_rand(nn.ws[i], low, high);
+        math_rand(nn.bs[i], low, high);
+    }
+}
+
+void nn_forward(NN nn)
+{
+    // iterate in layers
+    for (size_t i = 0; i < nn.count_layers; ++i) {
+        math_dot(nn.as[i+1], nn.as[i], nn.ws[i]);
+        math_sum(nn.as[i+1], nn.bs[i]);
+        math_sig(nn.as[i+1]);
+    }
+}
+
+float nn_cost(NN nn, Math train_input, Math train_output)
+{
+    NN_ASSERT(train_input.rows == train_output.rows);
+    NN_ASSERT(train_output.colluns == NN_OUTPUT(nn).colluns);
+    size_t n = train_input.rows;
+
+    float cost = 0;
+    for (size_t i = 0; i < n; ++i) {
+        Math x = math_row(train_input, i);
+        Math y = math_row(train_output, i);
+
+        math_copy(NN_INPUT(nn), x);
+        nn_forward(nn);
+        NN_OUTPUT(nn);
+
+        size_t q = train_output.colluns;
+        for (size_t j = 0; j < q; ++j) {
+            float diference = MATH_AT(NN_OUTPUT(nn), 0, j) - MATH_AT(y, 0, j);
+            cost = diference * diference;
+        }
+    }
+
+    return cost / n;
+}
+
+
+// For review
+void nn_finite_difference(NN nn, NN gate, float eps, Math in, Math out)
+{
+    float saved;
+    float cost = nn_cost(nn, in, out);
+
+    for (size_t i = 0; i < nn.count_layers; ++i) {
+        for (size_t j = 0; j < nn.ws[i].rows; ++i) {
+            for (size_t k = 0; k < nn.ws[i].colluns; ++k) {
+                saved = MATH_AT(nn.ws[i], j, k);
+                MATH_AT(nn.ws[i], j, k) += eps;
+                MATH_AT(gate.ws[i], j, k) = (nn_cost(nn, in, out) - cost) / eps;
+                MATH_AT(nn.ws[i], j, k) = saved;
+            }
+        }
+
+        for (size_t j = 0; j < nn.bs[i].rows; ++j) {
+            for (size_t k = 0; k < nn.bs[i].colluns; ++k) {
+                saved = MATH_AT(nn.bs[i], j, k);
+                MATH_AT(nn.bs[i], j, k) += eps;
+                MATH_AT(gate.bs[i], j, k) = (nn_cost(nn, in, out) - cost) / eps;
+                MATH_AT(nn.bs[i], j, k) = saved;
+            }
+        }
+    }
+}
+
+void nn_learn(NN nn, NN gate, float rate)
+{
+    for (size_t i = 0; i < nn.count_layers; ++i) {
+        for (size_t j = 0; j < nn.ws[i].rows; ++j) {
+            for (size_t k = 0; k < nn.ws[i].colluns; ++k) {
+                MATH_AT(nn.ws[i], j, k) -= rate * MATH_AT(gate.ws[i], j, k);
+            }
+        }
+
+        for (size_t j = 0; j < nn.bs[i].rows; ++j) {
+            for (size_t k = 0; k < nn.bs[i].colluns; ++k) {
+                MATH_AT(nn.bs[i], j, k) -= rate * MATH_AT(gate.bs[i], j, k);
+            }
+        }
+    }
+}
+
 #endif // NN_IMPLEMENTATION
+
