@@ -56,7 +56,7 @@ void nn_rand(NN nn, float low, float high);
 void nn_forward(NN nn);
 float nn_cost(NN nn, Math in, Math out);
 void nn_finite_difference(NN nn, NN gate, float eps, Math in, Math out);
-void nn_learn(NN nn, NN gate, float rate);
+void nn_learn_rate(NN nn, NN gate, float rate);
 
 #endif // NN_H_
 
@@ -259,15 +259,13 @@ float nn_cost(NN nn, Math train_input, Math train_output)
     return cost / n;
 }
 
-
-// For review
 void nn_finite_difference(NN nn, NN gate, float eps, Math in, Math out)
 {
     float saved;
     float cost = nn_cost(nn, in, out);
 
     for (size_t i = 0; i < nn.count_layers; ++i) {
-        for (size_t j = 0; j < nn.ws[i].rows; ++i) {
+        for (size_t j = 0; j < nn.ws[i].rows; ++j) {
             for (size_t k = 0; k < nn.ws[i].colluns; ++k) {
                 saved = MATH_AT(nn.ws[i], j, k);
                 MATH_AT(nn.ws[i], j, k) += eps;
@@ -287,7 +285,7 @@ void nn_finite_difference(NN nn, NN gate, float eps, Math in, Math out)
     }
 }
 
-void nn_learn(NN nn, NN gate, float rate)
+void nn_learn_rate(NN nn, NN gate, float rate)
 {
     for (size_t i = 0; i < nn.count_layers; ++i) {
         for (size_t j = 0; j < nn.ws[i].rows; ++j) {
@@ -305,4 +303,3 @@ void nn_learn(NN nn, NN gate, float rate)
 }
 
 #endif // NN_IMPLEMENTATION
-
