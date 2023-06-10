@@ -5,7 +5,7 @@
 #include <math.h>
 
 #define NN_IMPLEMENTATION
-#include "neural_network.h"
+#include "apollo.h"
 
 typedef struct {
     Math a0, a1, a2;
@@ -77,8 +77,8 @@ void finite_difference(Xor model, Xor gate, float eps, Math train_input, Math tr
     float stored_value;
     float c = cost(model, train_input, train_output);
 
-    for (size_t i = 0; i < model.w1.rows; ++i){
-        for (size_t j = 0; j < model.w1.rows; ++j){
+    for (size_t i = 0; i < model.w1.rows; ++i) {
+        for (size_t j = 0; j < model.w1.rows; ++j) {
             stored_value = MATH_AT(model.w1, i, j);
             MATH_AT(model.w1, i, j) += eps;
             MATH_AT(gate.w1, i, j) = (cost(model, train_input, train_output) - c) / eps;
@@ -86,8 +86,8 @@ void finite_difference(Xor model, Xor gate, float eps, Math train_input, Math tr
         }
     }
 
-    for (size_t i = 0; i < model.b1.rows; ++i){
-        for (size_t j = 0; j < model.b1.rows; ++j){
+    for (size_t i = 0; i < model.b1.rows; ++i) {
+        for (size_t j = 0; j < model.b1.rows; ++j) {
             stored_value = MATH_AT(model.w1, i, j);
             MATH_AT(model.b1, i, j) += eps;
             MATH_AT(gate.b1, i, j) = (cost(model, train_input, train_output) - c) / eps;
@@ -95,8 +95,8 @@ void finite_difference(Xor model, Xor gate, float eps, Math train_input, Math tr
         }
     }
 
-    for (size_t i = 0; i < model.w2.rows; ++i){
-        for (size_t j = 0; j < model.w2.rows; ++j){
+    for (size_t i = 0; i < model.w2.rows; ++i) {
+        for (size_t j = 0; j < model.w2.rows; ++j) {
             stored_value = MATH_AT(model.w2, i, j);
             MATH_AT(model.w2, i, j) += eps;
             MATH_AT(gate.w2, i, j) = (cost(model, train_input, train_output) - c) / eps;
@@ -104,8 +104,8 @@ void finite_difference(Xor model, Xor gate, float eps, Math train_input, Math tr
         }
     }
 
-    for (size_t i = 0; i < model.b2.rows; ++i){
-        for (size_t j = 0; j < model.b2.rows; ++j){
+    for (size_t i = 0; i < model.b2.rows; ++i) {
+        for (size_t j = 0; j < model.b2.rows; ++j) {
             stored_value = MATH_AT(model.b2, i, j);
             MATH_AT(model.b2, i, j) += eps;
             MATH_AT(gate.b2, i, j) = (cost(model, train_input, train_output) - c) / eps;
@@ -116,26 +116,26 @@ void finite_difference(Xor model, Xor gate, float eps, Math train_input, Math tr
 
 void xor_learn(Xor model, Xor gate, float rate)
 {
-    for (size_t i = 0; i < model.w1.rows; ++i){
-        for (size_t j = 0; j < model.w1.rows; ++j){
+    for (size_t i = 0; i < model.w1.rows; ++i) {
+        for (size_t j = 0; j < model.w1.rows; ++j) {
             MATH_AT(model.w1, i, j) -= rate * MATH_AT(gate.w1, i, j);
         }
     }
 
-    for (size_t i = 0; i < model.b1.rows; ++i){
-        for (size_t j = 0; j < model.b1.rows; ++j){
+    for (size_t i = 0; i < model.b1.rows; ++i) {
+        for (size_t j = 0; j < model.b1.rows; ++j) {
             MATH_AT(model.b1, i, j) -= rate * MATH_AT(gate.b1, i, j);
         }
     }
 
-    for (size_t i = 0; i < model.w2.rows; ++i){
-        for (size_t j = 0; j < model.w2.rows; ++j){
+    for (size_t i = 0; i < model.w2.rows; ++i) {
+        for (size_t j = 0; j < model.w2.rows; ++j) {
             MATH_AT(model.w2, i, j) -= rate * MATH_AT(gate.w2, i, j);
         }
     }
 
-    for (size_t i = 0; i < model.b2.rows; ++i){
-        for (size_t j = 0; j < model.b2.rows; ++j){
+    for (size_t i = 0; i < model.b2.rows; ++i) {
+        for (size_t j = 0; j < model.b2.rows; ++j) {
             MATH_AT(model.b2, i, j) -= rate * MATH_AT(gate.b2, i, j);
         }
     }
@@ -170,11 +170,8 @@ int main(void)
     float rate = 1e-1;
 
     printf("COST: %f\n", nn_cost(nn, train_input, train_output));
-
-    // for review
     nn_finite_difference(nn, gate, eps, train_input, train_output);
-
-    nn_learn(nn, gate, rate);
+    nn_learn_rate(nn, gate, rate);
     printf("COST: %f\n", nn_cost(nn, train_input, train_output));
 
     return 0;
