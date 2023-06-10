@@ -2,4 +2,4 @@
 
 set -xe
 
-clang -Wall -Wextra -o build/nn neural_network.c -lm
+clang -Wall -Wextra -o build/nn apollo.c -lm
