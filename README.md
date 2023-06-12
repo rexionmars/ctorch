@@ -13,7 +13,8 @@ Apollo is a Next Framework for Machine Learnig
 
 ## Main characteristics
 - [x] Easy use
-- [x] Fast
+- [x] C
+- [ ] C++
 - [x] Integrated
 - [x] High-Performance
 
