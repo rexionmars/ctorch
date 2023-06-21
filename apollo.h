@@ -24,26 +24,26 @@ typedef struct {
     size_t colluns;
     size_t stride;
     float *elements_start;
-} Math;
+} Matrix;
 
-#define MATH_AT(m, i, j) (m).elements_start[(i)*(m).stride + (j)]
+#define MATRIX_AT(m, i, j) (m).elements_start[(i)*(m).stride + (j)]
 
-Math mathematical_allocation(size_t rows, size_t colluns);
-void math_fill(Math m, float x);
-void math_rand(Math m, float low, float high);
-Math math_row(Math m, size_t row);
-void math_copy(Math distination, Math src);
-void math_dot(Math destination, Math a, Math b);
-void math_sum(Math destination, Math a);
-void math_sig(Math m);
-void math_print(Math m, const char *name, size_t padding);
-#define MATH_PRINT(m) math_print(m, #m, 0)
+Matrix matrix_alloc(size_t rows, size_t colluns);
+void matrix_fill(Matrix m, float x);
+void matrix_rand(Matrix m, float low, float high);
+Matrix matrix_row(Matrix m, size_t row);
+void matrix_copy(Matrix distination, Matrix src);
+void matrix_dot(Matrix destination, Matrix a, Matrix b);
+void matrix_sum(Matrix destination, Matrix a);
+void matrix_sig(Matrix m);
+void matri_print(Matrix m, const char *name, size_t padding);
+#define MATRIX_PRINT(m) matrix_print(m, #m, 0)
 
 typedef struct {
     size_t count_layers;
-    Math *ws;
-    Math *bs;
-    Math *as; // The amount of activations is count + 1
+    Matrix *ws;
+    Matrix *bs;
+    Matrix *as; // The amount of activations is count + 1
 } NN;
 
 #define NN_INPUT(nn) (nn).as[0]
@@ -54,8 +54,8 @@ void nn_print(NN nn, const char *name);
 #define NN_PRINT(nn) nn_print(nn, #nn);
 void nn_rand(NN nn, float low, float high);
 void nn_forward(NN nn);
-float nn_cost(NN nn, Math in, Math out);
-void nn_finite_difference(NN nn, NN gate, float eps, Math in, Math out);
+float nn_cost(NN nn, Matrix in, Matrix out);
+void nn_finite_difference(NN nn, NN gate, float eps, Matrix in, Matrix out);
 void nn_learn_rate(NN nn, NN gate, float rate);
 
 #endif // NN_H_
@@ -72,9 +72,9 @@ float rand_float(void)
     return (float) rand() / (float) RAND_MAX;
 }
 
-Math mathematical_allocation(size_t rows, size_t colluns)
+Matrix matrix_alloc(size_t rows, size_t colluns)
 {
-    Math model;
+    Matrix model;
     model.rows = rows;
     model.colluns = colluns;
     model.stride = colluns;
@@ -83,7 +83,7 @@ Math mathematical_allocation(size_t rows, size_t colluns)
     return model;
 }
 
-void math_dot(Math destination, Math a, Math b)
+void matrix_dot(Matrix destination, Matrix a, Matrix b)
 {
     NN_ASSERT(a.colluns == b.rows);
     size_t n = a.colluns;
@@ -92,83 +92,83 @@ void math_dot(Math destination, Math a, Math b)
 
     for (size_t i = 0; i < destination.rows; ++i) {
         for (size_t j = 0; j < destination.colluns; ++j) {
-            MATH_AT(destination, i, j) = 0;
+            MATRIX_AT(destination, i, j) = 0;
             for (size_t k = 0; k < n; ++k) {
-                MATH_AT(destination, i, j) += MATH_AT(a, i, k) * MATH_AT(b, k, j);
+                MATRIX_AT(destination, i, j) += MATRIX_AT(a, i, k) * MATRIX_AT(b, k, j);
             }
         }
     }
 }
 
-Math math_row(Math m, size_t row)
+Matrix matrix_row(Matrix m, size_t row)
 {
-    return (Math) {
+    return (Matrix) {
         .rows = 1,
         .colluns = m.colluns,
         .stride = m.stride,
-        .elements_start = &MATH_AT(m, row, 0),
+        .elements_start = &MATRIX_AT(m, row, 0),
     };
 }
 
-void math_copy(Math destination, Math src)
+void matrix_copy(Matrix destination, Matrix src)
 {
     NN_ASSERT(destination.rows == src.rows);
     NN_ASSERT(destination.colluns == src.colluns);
     for (size_t i = 0; i < destination.rows; ++i) {
         for (size_t j = 0; j < destination.colluns; ++j){
-            MATH_AT(destination, i, j) = MATH_AT(src, i, j);
+            MATRIX_AT(destination, i, j) = MATRIX_AT(src, i, j);
         }
     }
 }
 
-void math_sum(Math destination, Math a)
+void matrix_sum(Matrix destination, Matrix a)
 {
     NN_ASSERT(destination.rows == a.rows);
     NN_ASSERT(destination.colluns == a.colluns);
 
     for (size_t i = 0; i < destination.rows; ++i) {
         for (size_t j = 0; j < destination.colluns; ++j) {
-            MATH_AT(destination, i, j) += MATH_AT(a, i, j);
+            MATRIX_AT(destination, i, j) += MATRIX_AT(a, i, j);
         }
     }
 }
 
-void math_sig(Math m)
+void matrix_sig(Matrix m)
 {
     for (size_t i = 0; i < m.rows; ++i){
         for (size_t j = 0; j < m.colluns; ++j) {
-            MATH_AT(m, i, j) = sigmoidf(MATH_AT(m, i, j));
+            MATRIX_AT(m, i, j) = sigmoidf(MATRIX_AT(m, i, j));
         }
     }
 }
 
-void math_print(Math m, const char *name, size_t padding)
+void matrix_print(Matrix m, const char *name, size_t padding)
 {
     printf("%*s%s = [\n",(int) padding, "", name);
     for (size_t i = 0; i < m.rows; ++i) {
         printf("%*s    ", (int) padding, "");
         for (size_t j = 0; j < m.colluns; ++j) {
-            printf("%f ", MATH_AT(m, i, j));
+            printf("%f ", MATRIX_AT(m, i, j));
         }
         printf("\n");
     }
     printf("%*s]\n", (int ) padding, "");
 }
 
-void math_fill(Math m, float x)
+void matrix_fill(Matrix m, float x)
 {
     for (size_t i = 0; i < m.rows; ++i) {
         for (size_t j = 0; j < m.colluns; ++j) {
-            MATH_AT(m, i, j) = x;
+            MATRIX_AT(m, i, j) = x;
         }
     }
 }
 
-void math_rand(Math m, float low, float high)
+void matrix_rand(Matrix m, float low, float high)
 {
     for (size_t i = 0; i < m.rows; ++i) {
         for (size_t j = 0; j < m.colluns; ++j) {
-            MATH_AT(m, i, j) = rand_float() * (high - low) + low;
+            MATRIX_AT(m, i, j) = rand_float() * (high - low) + low;
         }
     }
 }
@@ -193,11 +193,11 @@ NN nn_allocation(size_t *arch, size_t arch_count)
     nn.as = NN_MALLOC(sizeof(*nn.as) * nn.count_layers + 1);
     NN_ASSERT(nn.as != NULL);
 
-    nn.as[0] = mathematical_allocation(1, arch[0]);
+    nn.as[0] = matrix_alloc(1, arch[0]);
     for (size_t i = 0; i < arch_count; ++i) {
-        nn.ws[i - 1] = mathematical_allocation(nn.as[i - 1].colluns, arch[i]);
-        nn.bs[i - 1] = mathematical_allocation(1, arch[i]);
-        nn.as[i] = mathematical_allocation(1, arch[i]);
+        nn.ws[i - 1] = matrix_alloc(nn.as[i - 1].colluns, arch[i]);
+        nn.bs[i - 1] = matrix_alloc(1, arch[i]);
+        nn.as[i] = matrix_alloc(1, arch[i]);
     }
 
     return nn;
@@ -209,9 +209,9 @@ void nn_print(NN nn, const char *name)
     printf("%s = [\n", name);
     for (size_t i = 0; i < nn.count_layers; ++i) {
         snprintf(buffer, sizeof(buffer), "ws%zu", i);
-        math_print(nn.ws[i], buffer, 4);
+        matrix_print(nn.ws[i], buffer, 4);
         snprintf(buffer, sizeof(buffer), "bs%zu", i);
-        math_print(nn.bs[i], buffer, 4);
+        matrix_print(nn.bs[i], buffer, 4);
     }
     printf("]\n");
 }
@@ -219,8 +219,8 @@ void nn_print(NN nn, const char *name)
 void nn_rand(NN nn, float low, float high)
 {
     for (size_t i = 0; i < nn.count_layers; ++i) {
-        math_rand(nn.ws[i], low, high);
-        math_rand(nn.bs[i], low, high);
+        matrix_rand(nn.ws[i], low, high);
+        matrix_rand(nn.bs[i], low, high);
     }
 }
 
@@ -228,30 +228,31 @@ void nn_forward(NN nn)
 {
     // iterate in layers
     for (size_t i = 0; i < nn.count_layers; ++i) {
-        math_dot(nn.as[i+1], nn.as[i], nn.ws[i]);
-        math_sum(nn.as[i+1], nn.bs[i]);
-        math_sig(nn.as[i+1]);
+        matrix_dot(nn.as[i+1], nn.as[i], nn.ws[i]);
+        matrix_sum(nn.as[i+1], nn.bs[i]);
+        matrix_sig(nn.as[i+1]);
     }
 }
 
-float nn_cost(NN nn, Math train_input, Math train_output)
+float nn_cost(NN nn, Matrix train_input, Matrix train_output)
 {
     NN_ASSERT(train_input.rows == train_output.rows);
     NN_ASSERT(train_output.colluns == NN_OUTPUT(nn).colluns);
+    
     size_t n = train_input.rows;
-
     float cost = 0;
-    for (size_t i = 0; i < n; ++i) {
-        Math x = math_row(train_input, i);
-        Math y = math_row(train_output, i);
 
-        math_copy(NN_INPUT(nn), x);
+    for (size_t i = 0; i < n; ++i) {
+        Matrix x = matrix_row(train_input, i);
+        Matrix y = matrix_row(train_output, i);
+
+        matrix_copy(NN_INPUT(nn), x);
         nn_forward(nn);
         NN_OUTPUT(nn);
 
         size_t q = train_output.colluns;
         for (size_t j = 0; j < q; ++j) {
-            float diference = MATH_AT(NN_OUTPUT(nn), 0, j) - MATH_AT(y, 0, j);
+            float diference = MATRIX_AT(NN_OUTPUT(nn), 0, j) - MATRIX_AT(y, 0, j);
             cost = diference * diference;
         }
     }
@@ -259,27 +260,27 @@ float nn_cost(NN nn, Math train_input, Math train_output)
     return cost / n;
 }
 
-void nn_finite_difference(NN nn, NN gate, float eps, Math in, Math out)
+void nn_finite_difference(NN nn, NN gate, float eps, Matrix train_input, Matrix train_output)
 {
     float saved;
-    float cost = nn_cost(nn, in, out);
+    float cost = nn_cost(nn, train_input, train_output);
 
     for (size_t i = 0; i < nn.count_layers; ++i) {
         for (size_t j = 0; j < nn.ws[i].rows; ++j) {
             for (size_t k = 0; k < nn.ws[i].colluns; ++k) {
-                saved = MATH_AT(nn.ws[i], j, k);
-                MATH_AT(nn.ws[i], j, k) += eps;
-                MATH_AT(gate.ws[i], j, k) = (nn_cost(nn, in, out) - cost) / eps;
-                MATH_AT(nn.ws[i], j, k) = saved;
+                saved = MATRIX_AT(nn.ws[i], j, k);
+                MATRIX_AT(nn.ws[i], j, k) += eps;
+                MATRIX_AT(gate.ws[i], j, k) = (nn_cost(nn, train_input, train_output) - cost) / eps;
+                MATRIX_AT(nn.ws[i], j, k) = saved;
             }
         }
 
         for (size_t j = 0; j < nn.bs[i].rows; ++j) {
             for (size_t k = 0; k < nn.bs[i].colluns; ++k) {
-                saved = MATH_AT(nn.bs[i], j, k);
-                MATH_AT(nn.bs[i], j, k) += eps;
-                MATH_AT(gate.bs[i], j, k) = (nn_cost(nn, in, out) - cost) / eps;
-                MATH_AT(nn.bs[i], j, k) = saved;
+                saved = MATRIX_AT(nn.bs[i], j, k);
+                MATRIX_AT(nn.bs[i], j, k) += eps;
+                MATRIX_AT(gate.bs[i], j, k) = (nn_cost(nn, train_input, train_output) - cost) / eps;
+                MATRIX_AT(nn.bs[i], j, k) = saved;
             }
         }
     }
@@ -290,13 +291,13 @@ void nn_learn_rate(NN nn, NN gate, float rate)
     for (size_t i = 0; i < nn.count_layers; ++i) {
         for (size_t j = 0; j < nn.ws[i].rows; ++j) {
             for (size_t k = 0; k < nn.ws[i].colluns; ++k) {
-                MATH_AT(nn.ws[i], j, k) -= rate * MATH_AT(gate.ws[i], j, k);
+                MATRIX_AT(nn.ws[i], j, k) -= rate * MATRIX_AT(gate.ws[i], j, k);
             }
         }
 
         for (size_t j = 0; j < nn.bs[i].rows; ++j) {
             for (size_t k = 0; k < nn.bs[i].colluns; ++k) {
-                MATH_AT(nn.bs[i], j, k) -= rate * MATH_AT(gate.bs[i], j, k);
+                MATRIX_AT(nn.bs[i], j, k) -= rate * MATRIX_AT(gate.bs[i], j, k);
             }
         }
     }
