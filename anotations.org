@@ -1,7 +1,13 @@
 #+title: Anotations and Fixes
 
 * APOLLO.h
-** Spell check
-    [] Fix varible name
-    [] Code style
-    
+** Global syntax check
+    [x] Fix varible name
+    [x] Code style
+
+** Variable
+    [x] MATH: MATRIX
+    [x] MATEMATHIC ALLOCATION: MATRIX ALLOCATION
+
+** Next Updates
+    [ ] Implement retro propagation (backpropagation)
