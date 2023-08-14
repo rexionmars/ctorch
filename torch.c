@@ -30,20 +30,25 @@ int main(void)
     size_t stride = 3;
     size_t n = 4;
 
-    Matrix train_input = {
+    Mat train_input = {
         .rows = n,
         .colluns = 2,
         .stride = stride,
         .elements_start = td
     };
 
-    Matrix train_output = {
+    Mat train_output = {
         .rows = n,
         .colluns = 1,
         .stride = stride,
         .elements_start = td + 2
     };
 
+    /*
+     * Firt parameter: Input neurons
+     * Second parameter: Hiden neurons
+     * Third parameter: Output neurons
+    */
     size_t architecture[] = {2, 4, 1};
     NN nn = nn_allocation(architecture, ARRAY_LEN(architecture));
     NN gate = nn_allocation(architecture, ARRAY_LEN(architecture));
@@ -64,10 +69,10 @@ int main(void)
 
     for (size_t i=0; i < 2; ++i) {
       for (size_t j=0; j < 2; ++j) {
-        MATRIX_AT(NN_INPUT(nn), 0, 0) = i;
-        MATRIX_AT(NN_INPUT(nn), 0, 0) = j;
+          MAT_AT(NN_INPUT(nn), 0, 0) = i;
+          MAT_AT(NN_INPUT(nn), 0, 0) = j;
         nn_forward(nn);
-          printf("%zu ^ %zu = %f\n", i, j, MATRIX_AT(NN_OUTPUT(nn), 0, 0));
+          printf("%zu ^ %zu = %f\n", i, j, MAT_AT(NN_OUTPUT(nn), 0, 0));
       }
     }
 
