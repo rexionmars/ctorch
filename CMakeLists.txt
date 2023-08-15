@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.26)
-project(apollo_framework C)
+project(ctorch C)
 
 set(CMAKE_C_STANDARD 11)
 
 include_directories(.)
 
-add_executable(apollo_framework
-        apollo.c
-        apollo.h)
+add_executable(ctorch
+        torch/torch.c
+        torch/torch.h
+)
