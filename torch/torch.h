@@ -41,22 +41,24 @@ void mat_print(Mat m, const char *name, size_t padding);
 
 typedef struct {
     size_t count_layers;
-    Mat *ws;
-    Mat *bs;
-    Mat *as; // The amount of activations is count + 1
+    Mat *weights;
+    Mat *bias;
+    Mat *activations; // The amount of activations is count + 1
 } NN;
 
-#define NN_INPUT(nn) (nn).as[0]
-#define NN_OUTPUT(nn) (nn).as[(nn).count_layers]
+#define NN_INPUT(nn) (nn).activations[0]
+#define NN_OUTPUT(nn) (nn).activations[(nn).count_layers]
 
 NN nn_allocation(size_t *arch, size_t arch_count);
 void nn_print(NN nn, const char *name);
 #define NN_PRINT(nn) nn_print(nn, #nn);
 void nn_rand(NN nn, float low, float high);
+void nn_zero(NN nn);
 void nn_forward(NN nn);
-float nn_cost(NN nn, Mat in, Mat out);
-void nn_finite_difference(NN nn, NN gate, float eps, Mat in, Mat out);
-void nn_learn_rate(NN nn, NN gate, float rate);
+float nn_cost(NN nn, Mat ti, Mat to);
+void nn_finite_difference(NN nn, NN gradient, float eps, Mat ti, Mat to);
+void nn_backpropagation(NN nn, NN gradient, Mat ti, Mat to);
+void nn_learn_rate(NN nn, NN gradient, float rate);
 
 #endif // NN_H_
 
@@ -121,14 +123,14 @@ void mat_copy(Mat destination, Mat src)
     }
 }
 
-void mat_sum(Mat destination, Mat a)
+void mat_sum(Mat destination, Mat activation)
 {
-    NN_ASSERT(destination.rows == a.rows);
-    NN_ASSERT(destination.colluns == a.colluns);
+    NN_ASSERT(destination.rows == activation.rows);
+    NN_ASSERT(destination.colluns == activation.colluns);
 
     for (size_t i = 0; i < destination.rows; ++i) {
         for (size_t j = 0; j < destination.colluns; ++j) {
-            MAT_AT(destination, i, j) += MAT_AT(a, i, j);
+            MAT_AT(destination, i, j) += MAT_AT(activation, i, j);
         }
     }
 }
@@ -173,31 +175,29 @@ void mat_rand(Mat m, float low, float high)
     }
 }
 
-//size_t arch[] = {2, 2, 1};
-//NN nn = neural_network_allocation(arch, ARRAY_LEN(arch));
-/*  NN nn = neural_network_allocation({2, 2 1})
+/*  NN = neural_network_allocation({2, 2 1})
+ *  NN = neural_network_allocation(arch, ARRAY_LEN(arch));
  *  The first argument is the number of inputs.
  *  The second argument is the number of hidden layers.
- *  The third argument is the number of outputs. */
-
+ *  The third argument is the number of outputs.*/
 NN nn_allocation(size_t *arch, size_t arch_count)
 {
     NN_ASSERT(arch_count > 0);
     NN nn;
     nn.count_layers = arch_count -1;
 
-    nn.ws = NN_MALLOC(sizeof(*nn.ws) * nn.count_layers);
-    NN_ASSERT(nn.ws != NULL);
-    nn.bs = NN_MALLOC(sizeof(*nn.bs) * nn.count_layers);
-    NN_ASSERT(nn.bs != NULL);
-    nn.as = NN_MALLOC(sizeof(*nn.as) * nn.count_layers + 1);
-    NN_ASSERT(nn.as != NULL);
+    nn.weights = NN_MALLOC(sizeof(*nn.weights) * nn.count_layers);
+    NN_ASSERT(nn.weights != NULL);
+    nn.bias = NN_MALLOC(sizeof(*nn.bias) * nn.count_layers);
+    NN_ASSERT(nn.bias != NULL);
+    nn.activations = NN_MALLOC(sizeof(*nn.activations) * nn.count_layers + 1);
+    NN_ASSERT(nn.activations != NULL);
 
-    nn.as[0] = mat_alloc(1, arch[0]);
+    nn.activations[0] = mat_alloc(1, arch[0]);
     for (size_t i = 0; i < arch_count; ++i) {
-        nn.ws[i - 1] = mat_alloc(nn.as[i - 1].colluns, arch[i]);
-        nn.bs[i - 1] = mat_alloc(1, arch[i]);
-        nn.as[i] = mat_alloc(1, arch[i]);
+        nn.weights[i - 1] = mat_alloc(nn.activations[i - 1].colluns, arch[i]);
+        nn.bias[i - 1] = mat_alloc(1, arch[i]);
+        nn.activations[i] = mat_alloc(1, arch[i]);
     }
 
     return nn;
@@ -208,10 +208,10 @@ void nn_print(NN nn, const char *name)
     char buffer[256];
     printf("%s = [\n", name);
     for (size_t i = 0; i < nn.count_layers; ++i) {
-        snprintf(buffer, sizeof(buffer), "ws%zu", i);
-        mat_print(nn.ws[i], buffer, 4);
-        snprintf(buffer, sizeof(buffer), "bs%zu", i);
-        mat_print(nn.bs[i], buffer, 4);
+        snprintf(buffer, sizeof(buffer), "weights%zu", i);
+        mat_print(nn.weights[i], buffer, 4);
+        snprintf(buffer, sizeof(buffer), "bias%zu", i);
+        mat_print(nn.bias[i], buffer, 4);
     }
     printf("]\n");
 }
@@ -219,18 +219,28 @@ void nn_print(NN nn, const char *name)
 void nn_rand(NN nn, float low, float high)
 {
     for (size_t i = 0; i < nn.count_layers; ++i) {
-        mat_rand(nn.ws[i], low, high);
-        mat_rand(nn.bs[i], low, high);
+        mat_rand(nn.weights[i], low, high);
+        mat_rand(nn.bias[i], low, high);
     }
+}
+
+void nn_zero(NN nn)
+{
+    for (size_t i = 0; i < nn.count_layers; ++i) {
+        mat_fill(nn.weights[i], 0);
+        mat_fill(nn.bias[i], 0);
+        mat_fill(nn.activations[i], 0);
+    }
+    mat_fill(nn.activations[nn.count_layers], 0);
 }
 
 void nn_forward(NN nn)
 {
     // iterate in layers
     for (size_t i = 0; i < nn.count_layers; ++i) {
-        mat_dot(nn.as[i+1], nn.as[i], nn.ws[i]);
-        mat_sum(nn.as[i+1], nn.bs[i]);
-        mat_sig(nn.as[i+1]);
+        mat_dot(nn.activations[i + 1], nn.activations[i], nn.weights[i]);
+        mat_sum(nn.activations[i + 1], nn.bias[i]);
+        mat_sig(nn.activations[i + 1]);
     }
 }
 
@@ -260,44 +270,103 @@ float nn_cost(NN nn, Mat train_input, Mat train_output)
     return cost / n;
 }
 
-void nn_finite_difference(NN nn, NN gate, float eps, Mat train_input, Mat train_output)
+void nn_backpropagation(NN nn, NN gradient, Mat ti, Mat to)
 {
-    float saved;
-    float cost = nn_cost(nn, train_input, train_output);
+    NN_ASSERT(ti.rows == to.rows);
+    size_t n = ti.rows;
+    NN_ASSERT(NN_OUTPUT(nn).colluns == to.colluns);
 
-    for (size_t i = 0; i < nn.count_layers; ++i) {
-        for (size_t j = 0; j < nn.ws[i].rows; ++j) {
-            for (size_t k = 0; k < nn.ws[i].colluns; ++k) {
-                saved = MAT_AT(nn.ws[i], j, k);
-                MAT_AT(nn.ws[i], j, k) += eps;
-                MAT_AT(gate.ws[i], j, k) = (nn_cost(nn, train_input, train_output) - cost) / eps;
-                MAT_AT(nn.ws[i], j, k) = saved;
-            }
+    // line = current sample    (i)
+    // layer = current layer    (l)
+    // curr_active = current activation  (j)
+    // prev_active = previous activation (k)
+    for (size_t line = 0; line < n; line++) {
+        mat_copy(NN_INPUT(nn), mat_row(ti, line));
+        nn_forward(nn);
+
+        // I
+        for (size_t col = 0; col < to.colluns; ++col) {
+            MAT_AT(NN_OUTPUT(gradient), 0, col) = MAT_AT(NN_OUTPUT(nn), 0, col) - MAT_AT(to, line, col);
         }
 
-        for (size_t j = 0; j < nn.bs[i].rows; ++j) {
-            for (size_t k = 0; k < nn.bs[i].colluns; ++k) {
-                saved = MAT_AT(nn.bs[i], j, k);
-                MAT_AT(nn.bs[i], j, k) += eps;
-                MAT_AT(gate.bs[i], j, k) = (nn_cost(nn, train_input, train_output) - cost) / eps;
-                MAT_AT(nn.bs[i], j, k) = saved;
+        // L
+        for (size_t layer = nn.count_layers; layer > 0; --layer) {
+            // J
+            for (size_t weight_cols = nn.activations[layer].colluns; nn.activations[layer].colluns; ++weight_cols) {
+                float activate = MAT_AT(nn.activations[layer], 0, weight_cols);
+                float diff_activate = MAT_AT(gradient.activations[layer], 0, weight_cols);
+                MAT_AT(gradient.bias[layer - 1], 0, weight_cols) += 2 * diff_activate * activate * (1 - activate);
+
+                // K
+                for (size_t weight_rows = 0; weight_rows < nn.activations[layer - 1].colluns; ++weight_rows) {
+                    // j - weight matrix colluns
+                    // k - weight matrix rows
+                    float prev_active_layer = MAT_AT(nn.activations[layer - 1], 0, weight_rows);
+                    float weight = MAT_AT(nn.weights[layer - 1], weight_rows, weight_cols);
+
+                    MAT_AT(gradient.weights[layer - 1], weight_rows, weight_rows) += 2 * diff_activate *
+                            activate * (1 - activate) * prev_active_layer;
+                    MAT_AT(gradient.activations[layer - 1], 0, weight_rows) += 2 * diff_activate *
+                            activate * (1-activate) * weight;
+                }
+            }
+        }
+    }
+
+    // Iterate in weights
+    for (size_t i = 0; i < gradient.count_layers; ++i) {
+        for (size_t j = 0; j < gradient.weights[i].rows; ++j) {
+            for (size_t k = 0; k < gradient.weights[i].colluns; ++k) {
+                MAT_AT(gradient.weights[i], j, k) /= n;
+            }
+        }
+        // Iterate in bias
+        for (size_t j = 0; j < gradient.bias[i].rows; ++j) {
+            for (size_t k = 0; k < gradient.bias[i].colluns; ++k) {
+                MAT_AT(gradient.bias[i], j, k) /= n;
             }
         }
     }
 }
 
-void nn_learn_rate(NN nn, NN gate, float rate)
+void nn_finite_difference(NN nn, NN gradient, float eps, Mat train_input, Mat train_output)
 {
+    float saved;
+    float cost = nn_cost(nn, train_input, train_output);
+
     for (size_t i = 0; i < nn.count_layers; ++i) {
-        for (size_t j = 0; j < nn.ws[i].rows; ++j) {
-            for (size_t k = 0; k < nn.ws[i].colluns; ++k) {
-                MAT_AT(nn.ws[i], j, k) -= rate * MAT_AT(gate.ws[i], j, k);
+        for (size_t j = 0; j < nn.weights[i].rows; ++j) {
+            for (size_t k = 0; k < nn.weights[i].colluns; ++k) {
+                saved = MAT_AT(nn.weights[i], j, k);
+                MAT_AT(nn.weights[i], j, k) += eps;
+                MAT_AT(gradient.weights[i], j, k) = (nn_cost(nn, train_input, train_output) - cost) / eps;
+                MAT_AT(nn.weights[i], j, k) = saved;
             }
         }
 
-        for (size_t j = 0; j < nn.bs[i].rows; ++j) {
-            for (size_t k = 0; k < nn.bs[i].colluns; ++k) {
-                MAT_AT(nn.bs[i], j, k) -= rate * MAT_AT(gate.bs[i], j, k);
+        for (size_t j = 0; j < nn.bias[i].rows; ++j) {
+            for (size_t k = 0; k < nn.bias[i].colluns; ++k) {
+                saved = MAT_AT(nn.bias[i], j, k);
+                MAT_AT(nn.bias[i], j, k) += eps;
+                MAT_AT(gradient.bias[i], j, k) = (nn_cost(nn, train_input, train_output) - cost) / eps;
+                MAT_AT(nn.bias[i], j, k) = saved;
+            }
+        }
+    }
+}
+
+void nn_learn_rate(NN nn, NN gradient, float rate)
+{
+    for (size_t i = 0; i < nn.count_layers; ++i) {
+        for (size_t j = 0; j < nn.weights[i].rows; ++j) {
+            for (size_t k = 0; k < nn.weights[i].colluns; ++k) {
+                MAT_AT(nn.weights[i], j, k) -= rate * MAT_AT(gradient.weights[i], j, k);
+            }
+        }
+
+        for (size_t j = 0; j < nn.bias[i].rows; ++j) {
+            for (size_t k = 0; k < nn.bias[i].colluns; ++k) {
+                MAT_AT(nn.bias[i], j, k) -= rate * MAT_AT(gradient.bias[i], j, k);
             }
         }
     }
